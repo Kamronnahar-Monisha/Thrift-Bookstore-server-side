@@ -43,8 +43,9 @@ function verifyJWT(req, res, next) {
 const run = async () => {
     try {
         const categoriesCollection = client.db('thrift-bookstore').collection('categories');
-        const serviceCollection = client.db('thrift-bookstore').collection('products');
+        const productsCollection = client.db('thrift-bookstore').collection('products');
         const usersCollection = client.db('thrift-bookstore').collection('users');
+        const ordersCollection = client.db('thrift-bookstore').collection('orders');
 
         //get api for jwt token
         app.get('/jwt', async (req, res) => {
@@ -58,6 +59,14 @@ const run = async () => {
             res.status(403).send({ accessToken: '' })
         });
 
+        //get api for user
+        app.get('/users', async (req, res) => {
+            const email = req.query.email;
+            const query = { email };
+            const user =await usersCollection.findOne(query);
+            res.send(user);
+        })
+
 
         //post api for adding a user
         app.post('/users', async (req, res) => {
@@ -69,12 +78,31 @@ const run = async () => {
 
 
         //get api for categories
-        app.get('/categories',async(req,res)=>{
+        app.get('/categories', async (req, res) => {
             let query = {};
             const cursor = categoriesCollection.find(query);
             const categories = await cursor.toArray();
             res.send(categories);
         })
+        //get api for specific categories id
+        app.get('/categories/:id', async (req, res) => {
+            const id = req.params.id;
+            const categoryQuery = { _id: ObjectId(id) };
+            const category = await categoriesCollection.findOne(categoryQuery);
+            const productQuery = { categoryName: category.name };
+            const cursor = productsCollection.find(productQuery);
+            const products = await cursor.toArray();
+            console.log(products);
+            res.send(products);
+        })
+
+
+        //post api for oder
+        app.post('/orders', async (req, res) => {
+            const order = req.body;
+            const result = await ordersCollection.insertOne(order);
+            res.send(result);
+        });
     }
     finally {
 
