@@ -29,7 +29,7 @@ function verifyJWT(req, res, next) {
 
     jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
         if (err) {
-            return res.status(403).send({ message: 'forbidden access' })
+            return res.status(401).send({ message: 'unauthorized access' })
         }
         req.decoded = decoded;
         next();
@@ -46,6 +46,7 @@ const run = async () => {
         const productsCollection = client.db('thrift-bookstore').collection('products');
         const usersCollection = client.db('thrift-bookstore').collection('users');
         const ordersCollection = client.db('thrift-bookstore').collection('orders');
+        const wishListCollection = client.db('thrift-bookstore').collection('wishList');
 
         //get api for jwt token
         app.get('/jwt', async (req, res) => {
@@ -59,11 +60,71 @@ const run = async () => {
             res.status(403).send({ accessToken: '' })
         });
 
+        //verify admin after verifying jwt
+        const verifyAdmin = async (req, res, next) => {
+            const decodedEmail = req.decoded.email;
+            const query = { email: decodedEmail };
+            const user = await usersCollection.findOne(query);
+
+            if (user?.role !== 'admin') {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            next();
+        }
+
+        //verify Buyer after verifying jwt
+        const verifyBuyer = async (req, res, next) => {
+            const decodedEmail = req.decoded.email;
+            const query = { email: decodedEmail };
+            const user = await usersCollection.findOne(query);
+
+            if (user?.role !== 'buyer') {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            next();
+        }
+
+        //verify admin after verifying jwt
+        const verifySeller = async (req, res, next) => {
+            const decodedEmail = req.decoded.email;
+            const query = { email: decodedEmail };
+            const user = await usersCollection.findOne(query);
+
+            if (user?.role !== 'seller') {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            next();
+        }
+
+        //get api for checking admin
+        app.get('/users/admin/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email }
+            const user = await usersCollection.findOne(query);
+            res.send({ isAdmin: user?.role === 'admin' });
+        })
+
+        //get api for checking admin
+        app.get('/users/seller/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email }
+            const user = await usersCollection.findOne(query);
+            res.send({ isSeller: user?.role === 'seller' });
+        })
+
+        //get api for checking admin
+        app.get('/users/buyer/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email }
+            const user = await usersCollection.findOne(query);
+            res.send({ isBuyer: user?.role === 'buyer' });
+        })
+
         //get api for user
         app.get('/users', async (req, res) => {
             const email = req.query.email;
             const query = { email };
-            const user =await usersCollection.findOne(query);
+            const user = await usersCollection.findOne(query);
             res.send(user);
         })
 
@@ -75,6 +136,7 @@ const run = async () => {
             const result = await usersCollection.insertOne(user);
             res.send(result);
         });
+
 
 
         //get api for categories
@@ -89,7 +151,10 @@ const run = async () => {
             const id = req.params.id;
             const categoryQuery = { _id: ObjectId(id) };
             const category = await categoriesCollection.findOne(categoryQuery);
-            const productQuery = { categoryName: category.name };
+            const productQuery = {
+                categoryName: category.name,
+                status: "available"
+            };
             const cursor = productsCollection.find(productQuery);
             const products = await cursor.toArray();
             console.log(products);
@@ -98,9 +163,16 @@ const run = async () => {
 
 
         //post api for oder
-        app.post('/orders', async (req, res) => {
+        app.post('/orders', verifyJWT, verifyBuyer, async (req, res) => {
             const order = req.body;
             const result = await ordersCollection.insertOne(order);
+            res.send(result);
+        });
+
+        //post api for wishList
+        app.post('/wishList', verifyJWT, verifyBuyer, async (req, res) => {
+            const wishItem = req.body;
+            const result = await wishListCollection.insertOne(wishItem);
             res.send(result);
         });
     }
