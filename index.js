@@ -169,11 +169,34 @@ const run = async () => {
             const query = { _id: ObjectId(id) };
             const updateDoc = {
                 $set: {
-                    verified:true
+                    verified: true
                 },
             };
             const result = await usersCollection.updateOne(query, updateDoc);
             res.send(result);
+        })
+
+        //Delete a user by id
+        app.delete('/users/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const email = req.query.email;
+            const decoded = req.decoded;
+            if (decoded.email !== email) {
+                res.status(403).send({ massage: "forbidden access" });
+            }
+            const id = req.params.id;
+            const userQuery = { _id: ObjectId(id) };
+            const user = await usersCollection.findOne(userQuery);
+            let orderQuery;
+            if(user?.role=='buyer'){
+                orderQuery = { buyerEmail: user?.email };
+            }
+            else{
+                orderQuery = { sellerEmail: user?.email };
+            }
+            const productResult = await usersCollection.deleteOne(userQuery);
+            const orderResult = await ordersCollection.deleteMany(orderQuery );
+            const wishListResult = await wishListCollection.deleteMany(orderQuery);
+            res.send(productResult);
         })
 
 
