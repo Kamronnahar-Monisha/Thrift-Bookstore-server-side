@@ -240,6 +240,21 @@ const run = async () => {
         })
 
 
+        //get a product from id 
+        app.get('/products/:id', verifyJWT, async (req, res) => {
+            const email = req.query.email;
+            const decoded = req.decoded;
+            if (decoded.email !== email) {
+                res.status(403).send({ massage: "forbidden access" });
+            }
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const product = await productsCollection.findOne(query);
+            res.send(product);
+        })
+        
+
+
 
 
         //post api for oder
