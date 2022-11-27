@@ -180,16 +180,20 @@ const run = async () => {
         })
 
         //patch api for updating advertised field for single product
-        app.patch('/products/:id', async (req, res) => {
+        app.patch('/products/:id', verifyJWT, verifySeller, async (req, res) => {
+            const email = req.query.email;
+            const decoded = req.decoded;
+            if(decoded.email!==email){
+                res.status(403).send({massage:"forbidden access"});
+            }
             const id = req.params.id;
-            const editedReviewText = req.body.editedReview;
             const query = { _id: ObjectId(id) };
             const updateDoc = {
                 $set: {
-                    reviewText: editedReviewText
+                    advertised: req.body.advertised
                 },
             };
-            const result = await reviewCollection.updateOne(query, updateDoc);
+            const result = await productsCollection.updateOne(query, updateDoc);
             res.send(result);
         })
 
