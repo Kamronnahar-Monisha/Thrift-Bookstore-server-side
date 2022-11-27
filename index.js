@@ -160,18 +160,37 @@ const run = async () => {
             res.send(products);
         })
 
-        //get api for indivitual seller product
-        app.get('/categories/:id', async (req, res) => {
-            const id = req.params.id;
-            const categoryQuery = { _id: ObjectId(id) };
-            const category = await categoriesCollection.findOne(categoryQuery);
-            const productQuery = {
-                categoryName: category.name,
-                status: "available"
-            };
-            const cursor = productsCollection.find(productQuery);
+        //get api for individual seller product
+        app.get('/products',verifyJWT, verifySeller, async (req, res) => {
+            const email = req.query.email;
+            const decoded = req.decoded;
+            if(decoded.email!==email){
+                res.status(403).send({massage:"forbidden access"});
+            }
+            console.log(email);
+            let query={};
+            if(email){
+                query={
+                    sellerEmail:email
+                };
+            }
+            const cursor = productsCollection.find(query);
             const products = await cursor.toArray();
             res.send(products);
+        })
+
+        //patch api for updating advertised field for single product
+        app.patch('/products/:id', async (req, res) => {
+            const id = req.params.id;
+            const editedReviewText = req.body.editedReview;
+            const query = { _id: ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    reviewText: editedReviewText
+                },
+            };
+            const result = await reviewCollection.updateOne(query, updateDoc);
+            res.send(result);
         })
 
         //post api for product
