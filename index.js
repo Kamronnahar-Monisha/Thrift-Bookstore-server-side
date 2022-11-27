@@ -128,14 +128,53 @@ const run = async () => {
             res.send(user);
         })
 
+        //get all users by role
+        app.get('/users/role', verifyJWT, verifyAdmin, async (req, res) => {
+            const email = req.query.email;
+            const decoded = req.decoded;
+            if (decoded.email !== email) {
+                res.status(403).send({ massage: "forbidden access" });
+            }
+            const role = req.query.role;
+            const query = { role };
+            const cursor = usersCollection.find(query);
+            const users = await cursor.toArray();
+            res.send(users);
+        })
+
 
         //post api for adding a user
         app.post('/users', async (req, res) => {
             const user = req.body;
-            const result = await usersCollection.insertOne(user);
-            res.send(result);
+            const email = user.email;
+            const query = { email };
+            const userFindResult = await usersCollection.findOne(query);
+            if (!userFindResult) {
+                const result = await usersCollection.insertOne(user);
+                res.send(result);
+            }
+            else {
+                res.send({});
+            }
         });
 
+        //patch api for updating user by id
+        app.patch('/users/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const email = req.query.email;
+            const decoded = req.decoded;
+            if (decoded.email !== email) {
+                res.status(403).send({ massage: "forbidden access" });
+            }
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    verified:true
+                },
+            };
+            const result = await usersCollection.updateOne(query, updateDoc);
+            res.send(result);
+        })
 
 
         //get api for categories
@@ -167,7 +206,6 @@ const run = async () => {
             if (decoded.email !== email) {
                 res.status(403).send({ massage: "forbidden access" });
             }
-            console.log(email);
             let query = {};
             if (email) {
                 query = {
@@ -186,7 +224,6 @@ const run = async () => {
             if (decoded.email !== email) {
                 res.status(403).send({ massage: "forbidden access" });
             }
-            console.log(email);
             let query = {};
             if (email) {
                 query = {
@@ -196,6 +233,25 @@ const run = async () => {
             const cursor = ordersCollection.find(query);
             const orders = await cursor.toArray();
             res.send(orders);
+        })
+
+
+        //get api for individual buyer whishList
+        app.get('/wishList', verifyJWT, verifyBuyer, async (req, res) => {
+            const email = req.query.email;
+            const decoded = req.decoded;
+            if (decoded.email !== email) {
+                res.status(403).send({ massage: "forbidden access" });
+            }
+            let query = {};
+            if (email) {
+                query = {
+                    buyerEmail: email
+                };
+            }
+            const cursor = wishListCollection.find(query);
+            const wishListItem = await cursor.toArray();
+            res.send(wishListItem);
         })
 
         //patch api for updating advertised field for single product
@@ -252,7 +308,7 @@ const run = async () => {
             const product = await productsCollection.findOne(query);
             res.send(product);
         })
-        
+
 
 
 
