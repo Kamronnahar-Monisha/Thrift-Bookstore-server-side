@@ -161,17 +161,17 @@ const run = async () => {
         })
 
         //get api for individual seller product
-        app.get('/products',verifyJWT, verifySeller, async (req, res) => {
+        app.get('/products', verifyJWT, verifySeller, async (req, res) => {
             const email = req.query.email;
             const decoded = req.decoded;
-            if(decoded.email!==email){
-                res.status(403).send({massage:"forbidden access"});
+            if (decoded.email !== email) {
+                res.status(403).send({ massage: "forbidden access" });
             }
             console.log(email);
-            let query={};
-            if(email){
-                query={
-                    sellerEmail:email
+            let query = {};
+            if (email) {
+                query = {
+                    sellerEmail: email
                 };
             }
             const cursor = productsCollection.find(query);
@@ -179,12 +179,31 @@ const run = async () => {
             res.send(products);
         })
 
+        //get api for individual buyer order
+        app.get('/orders', verifyJWT, verifyBuyer, async (req, res) => {
+            const email = req.query.email;
+            const decoded = req.decoded;
+            if (decoded.email !== email) {
+                res.status(403).send({ massage: "forbidden access" });
+            }
+            console.log(email);
+            let query = {};
+            if (email) {
+                query = {
+                    buyerEmail: email
+                };
+            }
+            const cursor = ordersCollection.find(query);
+            const orders = await cursor.toArray();
+            res.send(orders);
+        })
+
         //patch api for updating advertised field for single product
         app.patch('/products/:id', verifyJWT, verifySeller, async (req, res) => {
             const email = req.query.email;
             const decoded = req.decoded;
-            if(decoded.email!==email){
-                res.status(403).send({massage:"forbidden access"});
+            if (decoded.email !== email) {
+                res.status(403).send({ massage: "forbidden access" });
             }
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
@@ -203,6 +222,22 @@ const run = async () => {
             const result = await productsCollection.insertOne(product);
             res.send(result);
         });
+
+        //Delete a Product by id
+        app.delete('/products/:id', verifyJWT, verifySeller, async (req, res) => {
+            const email = req.query.email;
+            const decoded = req.decoded;
+            if (decoded.email !== email) {
+                res.status(403).send({ massage: "forbidden access" });
+            }
+            const id = req.params.id;
+            const productQuery = { _id: ObjectId(id) };
+            const orderQuery = { productId: id };
+            const productResult = await productsCollection.deleteOne(productQuery);
+            const orderResult = await ordersCollection.deleteMany(orderQuery);
+            const wishListResult = await wishListCollection.deleteMany(orderQuery);
+            res.send(productResult);
+        })
 
 
 
