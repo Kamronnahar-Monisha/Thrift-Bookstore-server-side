@@ -193,10 +193,11 @@ const run = async () => {
             else{
                 orderQuery = { sellerEmail: user?.email };
             }
-            const productResult = await usersCollection.deleteOne(userQuery);
+            const userResult = await usersCollection.deleteOne(userQuery);
+            const productResult = await productsCollection.deleteMany(orderQuery );
             const orderResult = await ordersCollection.deleteMany(orderQuery );
             const wishListResult = await wishListCollection.deleteMany(orderQuery);
-            res.send(productResult);
+            res.send(userResult);
         })
 
 
