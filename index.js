@@ -54,10 +54,10 @@ const run = async () => {
             const query = { email: email };
             const user = await usersCollection.findOne(query);
             if (user) {
-                const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, { expiresIn: '1h' })
+                const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, { expiresIn: '3h' })
                 return res.send({ accessToken: token });
             }
-            res.status(403).send({ accessToken: '' })
+            res.status(401).send({ accessToken: '' })
         });
 
         //verify admin after verifying jwt
@@ -132,7 +132,6 @@ const run = async () => {
         //post api for adding a user
         app.post('/users', async (req, res) => {
             const user = req.body;
-            console.log(user);
             const result = await usersCollection.insertOne(user);
             res.send(result);
         });
@@ -146,6 +145,7 @@ const run = async () => {
             const categories = await cursor.toArray();
             res.send(categories);
         })
+
         //get api for specific categories id
         app.get('/categories/:id', async (req, res) => {
             const id = req.params.id;
@@ -157,9 +157,31 @@ const run = async () => {
             };
             const cursor = productsCollection.find(productQuery);
             const products = await cursor.toArray();
-            console.log(products);
             res.send(products);
         })
+
+        //get api for indivitual seller product
+        app.get('/categories/:id', async (req, res) => {
+            const id = req.params.id;
+            const categoryQuery = { _id: ObjectId(id) };
+            const category = await categoriesCollection.findOne(categoryQuery);
+            const productQuery = {
+                categoryName: category.name,
+                status: "available"
+            };
+            const cursor = productsCollection.find(productQuery);
+            const products = await cursor.toArray();
+            res.send(products);
+        })
+
+        //post api for product
+        app.post('/products', verifyJWT, verifySeller, async (req, res) => {
+            const product = req.body;
+            const result = await productsCollection.insertOne(product);
+            res.send(result);
+        });
+
+
 
 
         //post api for oder
