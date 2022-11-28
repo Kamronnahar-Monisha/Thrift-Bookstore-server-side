@@ -3,6 +3,7 @@ const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
+const stripe = require("stripe")(process.env.STRIPE_SECRET);
 
 
 const app = express();
@@ -47,6 +48,7 @@ const run = async () => {
         const usersCollection = client.db('thrift-bookstore').collection('users');
         const ordersCollection = client.db('thrift-bookstore').collection('orders');
         const wishListCollection = client.db('thrift-bookstore').collection('wishList');
+        const paymentsCollection = client.db('thrift-bookstore').collection('payments');
 
         //get api for jwt token
         app.get('/jwt', async (req, res) => {
@@ -95,6 +97,48 @@ const run = async () => {
             }
             next();
         }
+
+
+
+        //payment api
+        app.post('/create-payment-intent',verifyJWT, async (req, res) => {
+            const order = req.body;
+            const price = parseInt(order.resalePrice);
+            let amount = price * 100;
+            if(!isNaN(amount)){
+                // amount=100;
+                const paymentIntent = await stripe.paymentIntents.create({
+                    currency: 'usd',
+                    amount: amount,
+                    "payment_method_types": [
+                        "card"
+                    ]
+                });
+                res.send({
+                    clientSecret: paymentIntent.client_secret,
+                });
+            }
+        });
+
+        app.post('/payments',verifyJWT, async (req, res) => {
+            const payment = req.body;
+            const result = await paymentsCollection.insertOne(payment);
+            const id = payment.orderId;
+            const filter = { _id: ObjectId(id) };
+            const options = { upsert: true };
+            const updatedDoc = {
+                $set: {
+                    paid: true,
+                    transactionId: payment.transactionId
+                }
+            }
+            const updatedResult = await ordersCollection.updateOne(filter, updatedDoc,options)
+            res.send(result);
+        })
+
+
+
+
 
         //get api for checking admin
         app.get('/users/admin/:email', async (req, res) => {
@@ -187,15 +231,15 @@ const run = async () => {
             const userQuery = { _id: ObjectId(id) };
             const user = await usersCollection.findOne(userQuery);
             let orderQuery;
-            if(user?.role=='buyer'){
+            if (user?.role == 'buyer') {
                 orderQuery = { buyerEmail: user?.email };
             }
-            else{
+            else {
                 orderQuery = { sellerEmail: user?.email };
             }
             const userResult = await usersCollection.deleteOne(userQuery);
-            const productResult = await productsCollection.deleteMany(orderQuery );
-            const orderResult = await ordersCollection.deleteMany(orderQuery );
+            const productResult = await productsCollection.deleteMany(orderQuery);
+            const orderResult = await ordersCollection.deleteMany(orderQuery);
             const wishListResult = await wishListCollection.deleteMany(orderQuery);
             res.send(userResult);
         })
@@ -333,6 +377,13 @@ const run = async () => {
             res.send(product);
         })
 
+        //advertise api
+        app.get('/advertise', async (req, res) => {
+            const query = { advertised: true };
+            const cursor = productsCollection.find(query);
+            const advertisedItem = await cursor.toArray();
+            res.send(advertisedItem);
+        })
 
 
 
@@ -343,6 +394,15 @@ const run = async () => {
             const result = await ordersCollection.insertOne(order);
             res.send(result);
         });
+
+        //get api for order with specific id
+
+        app.get('/orders/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const order = await ordersCollection.findOne(query);
+            res.send(order);
+        })
 
         //post api for wishList
         app.post('/wishList', verifyJWT, verifyBuyer, async (req, res) => {
