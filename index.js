@@ -124,15 +124,24 @@ const run = async () => {
             const payment = req.body;
             const result = await paymentsCollection.insertOne(payment);
             const id = payment.orderId;
-            const filter = { _id: ObjectId(id) };
+            const productId =payment.productId;
             const options = { upsert: true };
+            const query = {_id: ObjectId(productId)}
+            const updatedDocForProduct = {
+                $set: {
+                    status:"sold",
+                    advertised:false
+                }
+            }
+            const filter = { _id: ObjectId(id) };
             const updatedDoc = {
                 $set: {
                     paid: true,
                     transactionId: payment.transactionId
                 }
             }
-            const updatedResult = await ordersCollection.updateOne(filter, updatedDoc,options)
+            const updatedResultForProduct = await productsCollection.updateOne(query, updatedDocForProduct,options);
+            const updatedResult = await ordersCollection.updateOne(filter, updatedDoc,options);
             res.send(result);
         })
 
